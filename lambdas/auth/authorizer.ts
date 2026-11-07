@@ -24,7 +24,16 @@ export const handler = async (
   try {
     const payload = await verifier.verify(token);
     const username = payload['cognito:username'];
-    return policy(payload.sub, 'Allow', event.methodArn, { username });
+
+    // Read cognito groups from the verified token
+    const groups = payload['cognito:groups'] ?? [];
+
+    // POST requests require membership in the admins group
+    if(event.httpMethod === 'POST' && !groups.includes('Admins')){
+      return policy(payload.sub, 'Deny', event.methodArn, { username });
+    }
+
+    return policy(payload.sub, 'Allow', event.methodArn, { username })
   } catch (err) {
     console.log('Token verification failed:', (err as Error).message);
     return policy('anonymous', 'Deny', event.methodArn);

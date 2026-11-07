@@ -24,6 +24,13 @@ export class CognitoStack extends cdk.Stack {
       authFlows: { userPassword: true },
     });
 
+    // Create an admin group for users allowed to add movie roles
+    new cognito.CfnUserPoolGroup(this, 'AdminsGroup', {
+      groupName: 'Admins',
+      userPoolId: this.userPool.userPoolId,
+      description: 'Administrators allowed to manage movie roles',
+    });
+
     const authApi = new apig.RestApi(this, 'AuthApi', {
       description: 'Authentication API',
       endpointTypes: [apig.EndpointType.REGIONAL],
