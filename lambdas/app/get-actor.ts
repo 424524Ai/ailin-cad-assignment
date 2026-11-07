@@ -9,6 +9,7 @@ import {
   toActor,
   toRole,
   movieKey,
+  isMovieItem,
 } from "../shared/db";
 import { response } from "../shared/http";
 import { logRequest } from "../shared/request-logger";
@@ -44,6 +45,23 @@ export const handler = async (
     // Return actor information when no movie filter is provided
     if(movieId === undefined){
       return response(200, { data: actor });
+    }
+
+    // Check whether the specified movie exists
+    const movieResult = await ddb.send(
+      new GetCommand({
+        TableName: tableName,
+        Key: {
+          PK: movieKey(movieId),
+          SK: movieKey(movieId)
+        },
+      })
+    );
+
+    if(!movieResult.Item || !isMovieItem(movieResult.Item)){
+      return response(404, {
+        message: "Movie not found",
+      });
     }
 
     // Find the actor's role in the specified movie
