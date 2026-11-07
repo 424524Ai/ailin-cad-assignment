@@ -8,6 +8,7 @@ import {
   tableName,
   toRole,
   actorKey,
+  isMovieItem,
 } from "../shared/db";
 import { response } from "../shared/http";
 import { logRequest } from "../shared/request-logger";
@@ -32,21 +33,32 @@ export const handler = async (
   }
   try {
     if (actorId !== undefined) {
-      const result = await ddb.send(
-        new GetCommand({
-          TableName: tableName,
-          Key: {
-            PK: movieKey(movieId),
-            SK: actorKey(actorId),
-          },
-        })
-      );
+      // Check whether the movie exists
+      const movieResult = await ddb.send(new GetCommand({
+        TableName: tableName,
+        Key: {
+          PK: movieKey(movieId),
+          SK:movieKey(movieId),
+        },
+      }));
 
-      const item = result.Item;
+      if(!movieResult.Item || !isMovieItem(movieResult.Item)){
+        return response(404, {
+          message: "Movie not found",
+        });
+      }
 
-      return response(200, {
-        data: item && isRoleItem(item) ? [toRole(item)] : [],
-      });
+      // Find the specified actor's role in the movie
+      const roleResult = await ddb.send(new GetCommand({
+        TableName: tableName,
+        Key: {
+          PK: movieKey(movieId),
+          SK: actorKey(actorId),
+        },
+      }));
+
+      const role = roleResult.Item;
+      return response(200, {data: role && isRoleItem(role) ? [toRole(role)] : [], });
     }
     const queryResult = await ddb.send(
       new QueryCommand({
@@ -58,6 +70,13 @@ export const handler = async (
     );
 
     const resultItems = queryResult.Items ?? [];
+    // Check whether the movie exists
+    const movieExists = resultItems.some(isMovieItem);
+
+    if(!movieExists){
+      return response(404, {message: "Movie not found"});
+    }
+    // Return the roles associated with the movie
     return response(200, { data: resultItems.filter(isRoleItem).map(toRole) });
   } catch (err) {
     console.error("DynamoDB error:", err);
