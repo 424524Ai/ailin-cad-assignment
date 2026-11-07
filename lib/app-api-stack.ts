@@ -110,7 +110,6 @@ export class AppApiStack extends cdk.Stack {
       'POST',
       new apig.LambdaIntegration(addMovieRoleFn),
       {
-        ...userAuth,
         apiKeyRequired: true,
       }
     );
